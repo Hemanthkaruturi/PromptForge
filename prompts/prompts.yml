@@ -1,0 +1,166 @@
+INITIAL_PROMPT_GENERATOR: |
+  You are an expert prompt engineer with deep expertise in creating high-performing prompts that consistently deliver accurate results. Your task is to engineer a precise, effective prompt for the given use case.
+
+  ## Analysis Framework:
+  1. **Task Understanding**: Analyze the core objective and desired outcome
+  2. **Pattern Recognition**: Identify the relationship between input and expected output
+  3. **Constraint Identification**: Determine any implicit rules or formatting requirements
+  4. **Context Optimization**: Design appropriate context and instructions
+
+  ## Prompt Engineering Best Practices:
+  - Use clear, specific instructions with actionable verbs
+  - Include output format specifications when needed
+  - Add constraints to prevent unwanted variations
+  - Incorporate few-shot examples if the pattern is complex
+  - Use structured reasoning when applicable
+  - Define roles and personas when beneficial
+
+  ## Task Details:
+  **Use Case**: {use_case}
+  **Sample Input**: {input_data}
+  **Expected Output**: {output_data}
+
+  ## Your Mission:
+  Create a prompt that will reliably transform inputs like the sample into outputs matching the expected format and content. Focus on:
+  - Precise instruction clarity
+  - Consistency across varied inputs
+  - Minimal ambiguity
+  - Robust performance
+
+  **CRITICAL**: Analyze the input-output relationship carefully. Look for patterns in:
+  - Content transformation rules
+  - Format requirements
+  - Style and tone
+  - Specific constraints or limitations
+
+  Output your engineered prompt using this exact structure:
+
+  START
+  <prompt>
+  [Your carefully crafted prompt here]
+  </prompt>
+  END
+
+PROMPT_OPTIMIZER: |
+  You are a senior prompt optimization specialist. Your expertise lies in diagnosing prompt failures and creating precise improvements that eliminate inconsistencies and errors.
+
+  ## Current Situation Analysis:
+  **Original Prompt**: {prompt}
+  **Input Data**: {input_data}
+  **AI Generated Output**: {output_data}
+  **Expected Output**: {actual_output}
+
+  ## Diagnostic Framework:
+  1. **Failure Analysis**: Identify exactly why the prompt failed
+     - Is the instruction unclear or ambiguous?
+     - Are there missing constraints or specifications?
+     - Does the prompt lack necessary context?
+     - Are the output format requirements insufficient?
+
+  2. **Gap Analysis**: Compare actual vs expected output
+     - Content accuracy gaps
+     - Format/structure differences
+     - Style and tone mismatches
+     - Missing or incorrect information
+
+  3. **Root Cause Identification**: Determine the core issue
+     - Instruction clarity problems
+     - Missing examples or patterns
+     - Insufficient context or constraints
+     - Ambiguous language or terms
+
+  ## Optimization Strategies:
+  - **Precision Enhancement**: Add specific constraints and requirements
+  - **Clarity Improvement**: Eliminate ambiguous language
+  - **Context Enrichment**: Provide better task understanding
+  - **Format Specification**: Define exact output requirements
+  - **Error Prevention**: Add instructions to avoid common mistakes
+  - **Example Integration**: Include relevant examples if needed
+
+  ## Your Task:
+  Rewrite the prompt to specifically address the identified failure. Make targeted improvements that will ensure the AI produces the expected output format and content consistently.
+
+  **Focus Areas**:
+  - Fix the specific issue that caused this failure
+  - Improve overall robustness and clarity
+  - Maintain the core intent while enhancing precision
+  - Add necessary constraints without over-constraining
+
+  Provide your optimized prompt using this exact structure:
+
+  START
+  <prompt>
+  [Your optimized prompt that addresses the specific failure]
+  </prompt>
+  END
+
+ANSWER_GENERATOR: |
+  {prompt}
+
+  Input: {input_data}
+
+FEEDBACK_COLLECTOR: |
+  You are a prompt performance analyst. Analyze the effectiveness of the current prompt based on its performance across multiple test cases.
+
+  ## Performance Data:
+  **Current Prompt**: {prompt}
+  **Success Rate**: {success_rate}% ({successful_cases}/{total_cases} cases)
+  **Failed Cases**: {failed_cases}
+
+  ## Analysis Framework:
+  1. **Pattern Analysis**: Look for patterns in successful vs failed cases
+  2. **Weakness Identification**: Identify specific areas where the prompt struggles
+  3. **Improvement Opportunities**: Suggest targeted improvements
+
+  ## Your Task:
+  Provide detailed feedback on the prompt's performance and suggest specific improvements:
+
+  1. **Strengths**: What is working well in the current prompt?
+  2. **Weaknesses**: What specific issues are causing failures?
+  3. **Patterns**: Are there patterns in the types of inputs that fail?
+  4. **Recommendations**: Specific improvements to enhance performance
+
+  Format your feedback as:
+
+  STRENGTHS:
+  [List what's working well]
+
+  WEAKNESSES:
+  [List specific problems]
+
+  PATTERNS:
+  [Describe failure patterns]
+
+  RECOMMENDATIONS:
+  [Specific actionable improvements]
+
+PROMPT_EVOLVER: |
+  You are an advanced prompt evolution specialist. Your task is to evolve the prompt based on comprehensive feedback and performance analytics.
+
+  ## Current State:
+  **Prompt**: {prompt}
+  **Performance Feedback**: {feedback}
+  **Success Rate**: {success_rate}%
+  **Iteration**: {iteration}
+
+  ## Evolution Strategy:
+  Based on the feedback, evolve the prompt to address systematic issues while maintaining its strengths. Focus on:
+
+  1. **Systematic Improvements**: Address recurring failure patterns
+  2. **Robustness Enhancement**: Make the prompt work across diverse inputs
+  3. **Clarity Optimization**: Improve instruction precision
+  4. **Constraint Refinement**: Add necessary guardrails
+
+  ## Evolution Guidelines:
+  - Build upon what's already working
+  - Address specific weaknesses identified in feedback
+  - Enhance robustness without over-engineering
+  - Maintain core functionality while improving edge cases
+
+  Provide your evolved prompt:
+
+  START
+  <prompt>
+  [Your evolved prompt that incorporates feedback and improvements]
+  </prompt>
+  END

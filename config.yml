@@ -1,0 +1,189 @@
+# Golden Prompt Generator Configuration
+# This file controls all aspects of the prompt optimization process
+
+# ========================================
+# PROJECT SETTINGS
+# ========================================
+project:
+  name: "Golden Prompt Generator"
+  version: "2.0.0"
+  use_case: "Based on the company description classify which companies IT dependency into high, medium or low."
+
+# ========================================
+# DATA CONFIGURATION
+# ========================================
+data:
+  # Path to Excel file containing test data
+  excel_file: "data/golden_data.xlsx"
+
+  # Column names in the Excel file (auto-detection if not found)
+  input_column: "input_data"
+  output_column: "expected_output"
+
+  # Data validation settings
+  skip_empty_rows: true
+  max_test_cases: 100  # Limit number of test cases (0 = no limit)
+
+# ========================================
+# MODEL CONFIGURATION
+# ========================================
+models:
+  # Model for generating initial prompts (use powerful model for better initial prompts)
+  initial_prompt_generator:
+    provider: "claude"
+    model: "claude-sonnet-4-5-20250929"  # High-end model for prompt creation
+    max_tokens: 4000
+    temperature: 0.7
+
+  # Model for testing prompts (can use different model to test real-world performance)
+  answer_generator:
+    provider: "claude"
+    model: "claude-haiku-4-5-20251001"  # Different model for testing
+    max_tokens: 2000
+    temperature: 0.3
+
+  # Model for optimizing prompts
+  prompt_optimizer:
+    provider: "claude"
+    model: "claude-sonnet-4-5-20250929"  # High-end model for optimization
+    max_tokens: 4000
+    temperature: 0.5
+
+  # Model for feedback collection
+  feedback_collector:
+    provider: "claude"
+    model: "claude-sonnet-4-5-20250929"
+    max_tokens: 3000
+    temperature: 0.4
+
+  # Model for prompt evolution
+  prompt_evolver:
+    provider: "claude"
+    model: "claude-sonnet-4-5-20250929"
+    max_tokens: 4000
+    temperature: 0.6
+
+# ========================================
+# OPTIMIZATION SETTINGS
+# ========================================
+optimization:
+  # Maximum number of optimization iterations
+  max_iterations: 15
+
+  # Target success rate (0-100) - stop early if achieved
+  target_success_rate: 100
+
+  # Minimum quality score to consider "good enough" (0-100)
+  min_quality_threshold: 85
+
+  # Feedback collection frequency (every N iterations)
+  feedback_frequency: 3
+
+  # Number of test runs per iteration for stability
+  tests_per_iteration: 1
+
+  # Early stopping if no improvement after N iterations
+  early_stopping_patience: 5
+
+# ========================================
+# OUTPUT MATCHING CONFIGURATION
+# ========================================
+matching:
+  # How to compare expected vs actual output
+  method: "exact"  # Options: "exact", "fuzzy", "semantic"
+
+  # Case sensitivity for matching
+  case_sensitive: false
+
+  # Strip whitespace before comparison
+  strip_whitespace: true
+
+  # For fuzzy matching (if method = "fuzzy")
+  fuzzy_threshold: 0.8
+
+  # For semantic matching (if method = "semantic")
+  semantic_model: "sentence-transformers"
+
+# ========================================
+# OUTPUT SETTINGS
+# ========================================
+output:
+  # Save results with timestamp
+  save_timestamped: true
+
+  # Include metadata in saved files
+  include_metadata: true
+
+  # Verbose logging during optimization
+  verbose_logging: true
+
+  # Save intermediate prompts during optimization
+  save_intermediate_prompts: false
+
+  # Output file names
+  golden_prompt_file: "golden_prompt.txt"
+  results_summary_file: "optimization_results.json"
+
+# ========================================
+# PERFORMANCE SETTINGS
+# ========================================
+performance:
+  # Parallel processing (future feature)
+  enable_parallel: false
+  max_workers: 4
+
+  # Rate limiting for API calls
+  api_rate_limit: 10  # requests per minute
+
+  # Retry settings for failed API calls
+  max_retries: 3
+  retry_delay: 2  # seconds
+
+# ========================================
+# ADVANCED SETTINGS
+# ========================================
+advanced:
+  # Use caching for repeated prompts
+  enable_caching: true
+  cache_duration: 3600  # seconds
+
+  # Debug mode for detailed logging
+  debug_mode: false
+
+  # Seed for reproducible results
+  random_seed: 42
+
+  # Custom prompt templates file (optional)
+  custom_prompts_file: null  # Use null for default prompts/prompts.yml
+
+# ========================================
+# VALIDATION SETTINGS
+# ========================================
+validation:
+  # Validate configuration on startup
+  validate_config: true
+
+  # Check model availability before starting
+  validate_models: true
+
+  # Ensure data file exists and is readable
+  validate_data: true
+
+  # Minimum required test cases
+  min_test_cases: 1
+
+# ========================================
+# EXPERIMENTAL FEATURES
+# ========================================
+experimental:
+  # Use ensemble of models for robustness
+  enable_ensemble: false
+  ensemble_models: ["claude-3-5-sonnet-20241022", "claude-sonnet-4-5-20250929"]
+
+  # Multi-objective optimization
+  enable_multi_objective: false
+  objectives: ["accuracy", "consistency", "speed"]
+
+  # Adaptive optimization parameters
+  enable_adaptive: false
+  adaptive_learning_rate: 0.1
