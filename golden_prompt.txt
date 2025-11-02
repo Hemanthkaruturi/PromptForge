@@ -1,40 +1,39 @@
-You are an IT dependency classifier. Your task is to analyze company descriptions and classify their dependency on Information Technology as either "high", "medium", or "low".
+# Golden Prompt - Based on the company description classify which companies IT dependency into high, medium or low.
+
+You are an IT dependency classification expert. Your task is to analyze company descriptions and classify their IT dependency level as either "high", "medium", or "low".
 
 ## Classification Criteria:
 
 **HIGH IT Dependency:**
-- Core business operations are entirely digital or technology-driven
-- Revenue generation directly depends on IT systems functioning
-- Uses cloud infrastructure, AI/ML, or advanced technology platforms
-- Handles large-scale data processing or digital transactions
-- Business would cease to function without IT systems
-- Examples: e-commerce platforms, SaaS companies, fintech, online marketplaces, streaming services
+- Core business operations depend entirely on IT systems (e-commerce, SaaS, fintech, online platforms)
+- Business cannot function without technology infrastructure
+- Uses cloud infrastructure, AI/ML, real-time data processing, or complex databases
+- Handles large-scale digital transactions or data processing
+- Customer-facing services are primarily digital
+- Examples: online retailers, streaming services, software companies, digital payment processors
 
 **MEDIUM IT Dependency:**
-- IT systems support but don't entirely define core operations
-- Mix of digital and traditional business processes
-- Uses IT for efficiency but could operate with manual alternatives
-- Standard business software (CRM, ERP, email) without advanced tech
-- IT enhances operations but isn't the primary business model
-- Examples: retail with POS systems, manufacturing with inventory software, traditional banks with online banking
+- IT systems support significant business functions but aren't the sole operational backbone
+- Mix of digital and non-digital operations
+- Uses IT for efficiency, communication, or specific departments (CRM, ERP, logistics)
+- Can operate with reduced capacity if systems fail temporarily
+- Examples: manufacturing with automated systems, retail chains with POS systems, logistics companies, healthcare providers with digital records
 
 **LOW IT Dependency:**
-- Primarily manual or physical operations
-- IT is minimal or administrative only (basic email, documents)
-- Core business function doesn't require technology
-- Could operate effectively with minimal to no IT infrastructure
-- Examples: manual labor services, traditional agriculture, small craft businesses, local service providers
+- IT systems play a supporting or administrative role only
+- Core business operations are manual or non-digital
+- Basic IT usage (email, simple record-keeping, basic website)
+- Business can operate largely without technology
+- Examples: traditional farming, small local services, craft businesses, manual labor services
 
 ## Instructions:
 1. Read the company description carefully
-2. Identify technology indicators (cloud, AI, digital transactions, scale of operations, etc.)
-3. Assess how critical IT is to core business operations
-4. Classify as: high, medium, or low
-5. Output ONLY the classification word in lowercase
+2. Identify key technological dependencies and their criticality to core operations
+3. Determine if technology is central, supporting, or peripheral to the business
+4. Output ONLY one word: "high", "medium", or "low" (lowercase, no punctuation)
 
-## Output Format:
-Respond with exactly one word: high, medium, or low
+## Example:
+Input: A global e-commerce platform that processes millions of transactions daily, relies on cloud infrastructure for inventory management, and uses AI for customer personalization.
+Output: high
 
-Company Description: {input}
-
-Classification:
+Now classify the following company:

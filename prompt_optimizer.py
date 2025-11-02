@@ -1,5 +1,8 @@
 import yaml
 import re
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Tuple, Optional
 from utils.llms import get_llm_response
 
@@ -78,12 +81,31 @@ class PromptOptimizer:
         })
 
     def _call_llm(self, prompt: str, stage: str) -> str:
-        """Call LLM with stage-specific model configuration."""
+        """Call LLM with stage-specific model configuration and retry logic."""
         model_config = self._get_model_config(stage)
         provider = model_config.get('provider', 'claude')
         model = model_config.get('model', 'claude-3-5-sonnet-20241022')
 
-        return get_llm_response(prompt, provider, model)
+        # Get retry configuration
+        performance_config = self.config.get('performance', {})
+        max_retries = performance_config.get('max_retries', 3)
+        retry_delay = performance_config.get('retry_delay', 2)
+        exponential_backoff = performance_config.get('exponential_backoff', True)
+
+        last_exception = None
+        for attempt in range(max_retries + 1):
+            try:
+                return get_llm_response(prompt, provider, model)
+            except Exception as e:
+                last_exception = e
+                if attempt < max_retries:
+                    # Calculate delay with optional exponential backoff
+                    delay = retry_delay * (2 ** attempt if exponential_backoff else 1)
+                    print(f"   ⚠️  API call failed (attempt {attempt + 1}/{max_retries + 1}), retrying in {delay}s...")
+                    time.sleep(delay)
+                else:
+                    print(f"   ❌ API call failed after {max_retries + 1} attempts")
+                    raise last_exception
 
     def _extract_prompt_from_response(self, response: str) -> str:
         """Extract prompt from LLM response between START and END markers."""
@@ -172,10 +194,35 @@ class PromptOptimizer:
         """Check if actual output matches expected output."""
         return actual_output.strip().lower() == expected_output.strip().lower()
 
+    def _test_single_case(self, prompt: str, input_data: str, expected_output: str,
+                         case_index: int, total_cases: int, verbose: bool = True) -> Tuple[bool, str, int]:
+        """Test a single case and return results."""
+        try:
+            # Add rate limiting if configured
+            performance_config = self.config.get('performance', {})
+            if performance_config.get('rate_limit_delay', 0) > 0:
+                time.sleep(performance_config['rate_limit_delay'])
+
+            actual_output = self.generate_answer(prompt, input_data)
+            is_match = self.check_output_match(actual_output, expected_output)
+
+            if verbose:
+                status = "✅" if is_match else "❌"
+                print(f"   {status} Test {case_index+1}/{total_cases}: {'Match found' if is_match else 'Mismatch'}")
+                if not is_match and verbose:
+                    print(f"      Expected: {expected_output[:50]}...")
+                    print(f"      Got: {actual_output[:50]}...")
+
+            return is_match, actual_output, case_index
+        except Exception as e:
+            if verbose:
+                print(f"   ❌ Test {case_index+1}/{total_cases}: Error - {str(e)}")
+            return False, str(e), case_index
+
     def test_prompt_with_data(self, prompt: str, test_data: List[Tuple[str, str]],
                              verbose: bool = True) -> Tuple[int, int, List[Tuple[str, str, str]]]:
         """
-        Test a prompt against all test cases.
+        Test a prompt against all test cases with optional parallel processing.
 
         Args:
             prompt: The prompt to test
@@ -189,19 +236,100 @@ class PromptOptimizer:
         total_tests = len(test_data)
         failed_cases = []
 
-        for i, (input_data, expected_output) in enumerate(test_data):
-            actual_output = self.generate_answer(prompt, input_data)
+        # Check if parallel processing is enabled
+        performance_config = self.config.get('performance', {})
+        enable_parallel = performance_config.get('enable_parallel', False)
+        max_workers = performance_config.get('max_workers', 4)
+        batch_size = performance_config.get('batch_size', 8)
 
-            if self.check_output_match(actual_output, expected_output):
-                successful_matches += 1
+        if enable_parallel and total_tests > 3:  # Only use parallel for larger datasets
+            if verbose:
+                print(f"   🚀 Using parallel processing with {max_workers} workers")
+
+            try:
+                # Process in batches to manage memory and API rate limits
+                batches = [test_data[i:i + batch_size] for i in range(0, len(test_data), batch_size)]
+
+                for batch_idx, batch in enumerate(batches):
+                    if verbose and len(batches) > 1:
+                        print(f"   📦 Processing batch {batch_idx + 1}/{len(batches)}")
+
+                    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        # Submit all tasks in the current batch
+                        future_to_case = {
+                            executor.submit(
+                                self._test_single_case,
+                                prompt,
+                                input_data,
+                                expected_output,
+                                batch_idx * batch_size + i,
+                                total_tests,
+                                verbose
+                            ): (input_data, expected_output, batch_idx * batch_size + i)
+                            for i, (input_data, expected_output) in enumerate(batch)
+                        }
+
+                        # Collect results
+                        for future in as_completed(future_to_case):
+                            input_data, expected_output, case_index = future_to_case[future]
+                            try:
+                                is_match, actual_output, _ = future.result()
+                                if is_match:
+                                    successful_matches += 1
+                                else:
+                                    failed_cases.append((input_data, expected_output, actual_output))
+                            except Exception as e:
+                                if verbose:
+                                    print(f"   ❌ Test {case_index+1}/{total_tests}: Exception - {str(e)}")
+                                failed_cases.append((input_data, expected_output, f"Error: {str(e)}"))
+
+                    # Add delay between batches to respect rate limits
+                    if batch_idx < len(batches) - 1 and performance_config.get('rate_limit_delay', 0) > 0:
+                        time.sleep(performance_config['rate_limit_delay'] * 2)  # Extra delay between batches
+
+            except Exception as e:
                 if verbose:
-                    print(f"   ✅ Test {i+1}/{total_tests}: Match found")
-            else:
-                failed_cases.append((input_data, expected_output, actual_output))
+                    print(f"   ⚠️  Parallel processing failed, falling back to sequential: {str(e)}")
+                # Fallback to sequential processing
+                return self._test_sequential(prompt, test_data, verbose)
+        else:
+            # Sequential processing
+            return self._test_sequential(prompt, test_data, verbose)
+
+        return successful_matches, total_tests, failed_cases
+
+    def _test_sequential(self, prompt: str, test_data: List[Tuple[str, str]],
+                        verbose: bool = True) -> Tuple[int, int, List[Tuple[str, str, str]]]:
+        """Fallback sequential testing method."""
+        successful_matches = 0
+        total_tests = len(test_data)
+        failed_cases = []
+
+        performance_config = self.config.get('performance', {})
+        rate_limit_delay = performance_config.get('rate_limit_delay', 0)
+
+        for i, (input_data, expected_output) in enumerate(test_data):
+            try:
+                # Add rate limiting
+                if rate_limit_delay > 0:
+                    time.sleep(rate_limit_delay)
+
+                actual_output = self.generate_answer(prompt, input_data)
+
+                if self.check_output_match(actual_output, expected_output):
+                    successful_matches += 1
+                    if verbose:
+                        print(f"   ✅ Test {i+1}/{total_tests}: Match found")
+                else:
+                    failed_cases.append((input_data, expected_output, actual_output))
+                    if verbose:
+                        print(f"   ❌ Test {i+1}/{total_tests}: Mismatch")
+                        print(f"      Expected: {expected_output[:50]}...")
+                        print(f"      Got: {actual_output[:50]}...")
+            except Exception as e:
                 if verbose:
-                    print(f"   ❌ Test {i+1}/{total_tests}: Mismatch")
-                    print(f"      Expected: {expected_output[:50]}...")
-                    print(f"      Got: {actual_output[:50]}...")
+                    print(f"   ❌ Test {i+1}/{total_tests}: Error - {str(e)}")
+                failed_cases.append((input_data, expected_output, f"Error: {str(e)}"))
 
         return successful_matches, total_tests, failed_cases
 
@@ -390,15 +518,32 @@ if __name__ == "__main__":
     golden_prompt = optimizer.create_golden_prompt(use_case, test_data)
 
     if golden_prompt:
+        # Create golden_prompts directory if it doesn't exist
+        golden_prompts_dir = "golden_prompts"
+        os.makedirs(golden_prompts_dir, exist_ok=True)
+
+        # Generate timestamp and filename
+        import pandas as pd
+        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+
+        # Create safe use case name for filename
+        safe_use_case = ''.join(c for c in use_case if c.isalnum() or c in (' ', '-', '_')).rstrip()[:50]
+        safe_use_case = safe_use_case.replace(' ', '_')
+
+        filename = f"PromptForge_v2.0.0_TEST_{safe_use_case}_{timestamp}.txt"
+        filepath = os.path.join(golden_prompts_dir, filename)
+
         # Save the result
-        filename = "test_golden_prompt.txt"
-        with open(filename, "w") as f:
-            f.write(f"# Test Golden Prompt\n")
+        with open(filepath, "w") as f:
+            f.write(f"# Test Golden Prompt - PromptForge v2.0.0\n")
+            f.write(f"# Generated on: {pd.Timestamp.now()}\n")
             f.write(f"# Use Case: {use_case}\n")
-            f.write(f"# Test Cases: {len(test_data)}\n\n")
+            f.write(f"# Test Cases: {len(test_data)}\n")
+            f.write(f"# Mode: Interactive Test\n")
+            f.write(f"#{'='*60}\n\n")
             f.write(golden_prompt)
 
-        print(f"\n💾 Golden prompt saved to: {filename}")
+        print(f"\n💾 Golden prompt saved to: {filepath}")
 
         # Final test
         print(f"\n🔍 Final validation:")
@@ -410,5 +555,26 @@ if __name__ == "__main__":
         print(f"\n📊 Final Results:")
         print(f"✅ Success Rate: {final_matches}/{total} ({quality['success_rate']:.1f}%)")
         print(f"🎯 Quality Score: {quality['overall_quality']:.1f}/100")
+
+        # Also save test results
+        results_filename = f"PromptForge_v2.0.0_TEST_{safe_use_case}_{timestamp}_results.json"
+        results_filepath = os.path.join(golden_prompts_dir, results_filename)
+
+        import json
+        test_results = {
+            "project_name": "PromptForge",
+            "project_version": "2.0.0",
+            "mode": "Interactive Test",
+            "use_case": use_case,
+            "timestamp": pd.Timestamp.now().isoformat(),
+            "test_cases_count": len(test_data),
+            "final_success_rate": quality['success_rate'],
+            "final_quality_score": quality['overall_quality'],
+            "prompt_file": filename
+        }
+
+        with open(results_filepath, "w") as f:
+            json.dump(test_results, f, indent=2)
+        print(f"📊 Test results saved to: {results_filepath}")
     else:
         print("❌ Failed to generate golden prompt")

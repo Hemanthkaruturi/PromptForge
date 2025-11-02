@@ -1,5 +1,6 @@
 import pandas as pd
 import yaml
+import os
 from typing import List, Tuple
 from prompt_optimizer import PromptOptimizer
 
@@ -141,25 +142,89 @@ def main():
             for i, (inp, exp, got) in enumerate(final_failed[:3]):
                 print(f"  {i+1}. Input: {inp[:30]}... Expected: {exp[:30]}... Got: {got[:30]}...")
 
-        # Save the golden prompt with metadata
-        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"golden_prompt_{timestamp}.txt"
+        # Create golden_prompts directory if it doesn't exist
+        golden_prompts_dir = "golden_prompts"
+        os.makedirs(golden_prompts_dir, exist_ok=True)
 
-        with open(filename, "w") as f:
-            f.write(f"# Golden Prompt Generated on {pd.Timestamp.now()}\n")
-            f.write(f"# Use Case: {use_case}\n")
-            f.write(f"# Test Cases: {len(test_data)}\n")
-            f.write(f"# Final Success Rate: {final_quality['success_rate']:.1f}%\n")
-            f.write(f"# Quality Score: {final_quality['overall_quality']:.1f}/100\n\n")
+        # Get project info from config
+        project_config = config.get('project', {})
+        project_name = project_config.get('name', 'PromptForge').replace(' ', '_')
+        project_version = project_config.get('version', '2.0.0')
+
+        # Generate timestamp
+        timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+
+        # Create safe use case name for filename
+        safe_use_case = ''.join(c for c in use_case if c.isalnum() or c in (' ', '-', '_')).rstrip()[:50]
+        safe_use_case = safe_use_case.replace(' ', '_')
+
+        # Create filename with project name, version, and timestamp
+        filename = f"{project_name}_v{project_version}_{safe_use_case}_{timestamp}.txt"
+        filepath = os.path.join(golden_prompts_dir, filename)
+
+        # Save results based on config
+        output_config = config.get('output', {})
+        include_metadata = output_config.get('include_metadata', True)
+
+        # Save in golden_prompts folder with detailed naming
+        with open(filepath, "w") as f:
+            if include_metadata:
+                f.write(f"# Golden Prompt - {project_name} v{project_version}\n")
+                f.write(f"# Generated on: {pd.Timestamp.now()}\n")
+                f.write(f"# Use Case: {use_case}\n")
+                f.write(f"# Test Cases: {len(test_data)}\n")
+                f.write(f"# Final Success Rate: {final_quality['success_rate']:.1f}%\n")
+                f.write(f"# Quality Score: {final_quality['overall_quality']:.1f}/100\n")
+                f.write(f"# Consistency Score: {final_quality['consistency_score']:.1f}/100\n")
+                f.write(f"# Robustness Score: {final_quality['robustness_score']:.1f}/100\n")
+                f.write(f"# Configuration: {config.get('optimization', {})}\n")
+                f.write(f"#{'='*60}\n\n")
             f.write(golden_prompt)
 
         # Also save to the standard filename for backwards compatibility
         with open("golden_prompt.txt", "w") as f:
+            if include_metadata:
+                f.write(f"# Golden Prompt - {use_case}\n\n")
             f.write(golden_prompt)
 
         print(f"\n💾 Golden prompt saved to:")
-        print(f"  • {filename} (timestamped version)")
+        print(f"  • {filepath} (detailed version)")
         print(f"  • golden_prompt.txt (standard version)")
+
+        # Save optimization results JSON if configured
+        results_file = output_config.get('results_summary_file')
+        if results_file or True:  # Always save results
+            import json
+
+            # Save results in golden_prompts folder with similar naming
+            results_filename = f"{project_name}_v{project_version}_{safe_use_case}_{timestamp}_results.json"
+            results_filepath = os.path.join(golden_prompts_dir, results_filename)
+
+            results_summary = {
+                "project_name": project_name,
+                "project_version": project_version,
+                "use_case": use_case,
+                "timestamp": pd.Timestamp.now().isoformat(),
+                "test_cases_count": len(test_data),
+                "final_success_rate": final_quality['success_rate'],
+                "final_quality_score": final_quality['overall_quality'],
+                "consistency_score": final_quality['consistency_score'],
+                "robustness_score": final_quality['robustness_score'],
+                "failed_cases_count": len(final_failed) if final_failed else 0,
+                "prompt_file": filename,
+                "config_used": config
+            }
+
+            # Save to golden_prompts folder
+            with open(results_filepath, "w") as f:
+                json.dump(results_summary, f, indent=2)
+            print(f"📊 Results summary saved to: {results_filepath}")
+
+            # Also save to configured location if specified
+            if results_file and results_file != results_filename:
+                with open(results_file, "w") as f:
+                    json.dump(results_summary, f, indent=2)
+                print(f"📊 Results also saved to: {results_file}")
 
 
 if __name__ == "__main__":

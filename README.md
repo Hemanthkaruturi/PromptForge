@@ -28,6 +28,18 @@
 - **Reproducible Results**: Consistent optimization with saved configurations
 - **Professional Deployment**: Production-ready configuration management
 
+### **High-Performance Processing**
+- **Parallel Execution**: Concurrent test processing for 3-10x speed improvements
+- **Intelligent Batching**: Smart batch processing with configurable worker pools
+- **Rate Limiting**: API-safe concurrent requests with exponential backoff
+- **Auto-Fallback**: Graceful degradation to sequential processing when needed
+
+### **Professional File Management**
+- **Organized Storage**: Automated `golden_prompts/` folder organization
+- **Smart Naming**: Project name, version, and timestamp-based file naming
+- **Rich Metadata**: Comprehensive performance metrics and configuration tracking
+- **JSON Results**: Structured optimization results with detailed analytics
+
 ## Quick Start
 
 ### Installation
@@ -118,6 +130,26 @@ data:
   output_column: "expected_output"
   max_test_cases: 100            # Limit test cases (0 = no limit)
   skip_empty_rows: true
+```
+
+### Performance Configuration
+Configure parallel processing and performance optimization:
+
+```yaml
+performance:
+  # Parallel processing for faster execution
+  enable_parallel: true
+  max_workers: 4                      # Number of concurrent workers
+  batch_size: 8                       # Process test cases in batches
+
+  # Rate limiting for API calls
+  api_rate_limit: 60                  # requests per minute
+  rate_limit_delay: 1.0               # seconds between API calls
+
+  # Retry settings for failed API calls
+  max_retries: 3
+  retry_delay: 2                      # seconds
+  exponential_backoff: true           # Increase delay exponentially
 ```
 
 ## Architecture
@@ -298,17 +330,22 @@ Systematic improvement through:
 
 ```
 prompt_generator/
-├── main.py                    # Main application entry point
-├── prompt_optimizer.py        # Core optimization engine
-├── config.yml                 # Configuration file
+├── main.py                              # Main application entry point
+├── prompt_optimizer.py                  # Core optimization engine
+├── config.yml                           # Configuration file
+├── golden_prompts/                      # 🆕 Generated prompts storage
+│   ├── PromptForge_v2.0.0_sentiment_20241102_143052.txt
+│   ├── PromptForge_v2.0.0_sentiment_20241102_143052_results.json
+│   └── ...                             # Organized by project, version, timestamp
 ├── prompts/
-│   └── prompts.yml            # Advanced prompt templates
+│   └── prompts.yml                      # Advanced prompt templates
 ├── utils/
-│   └── llms.py               # LLM integration utilities
+│   └── llms.py                         # LLM integration utilities
 ├── data/
-│   └── golden_data.xlsx      # Test data (Excel format)
-├── pyproject.toml            # Python dependencies
-└── README.md                 # This file
+│   └── golden_data.xlsx                # Test data (Excel format)
+├── pyproject.toml                      # Python dependencies
+├── golden_prompt.txt                   # Latest prompt (backward compatibility)
+└── README.md                           # This file
 ```
 
 ## Usage Examples

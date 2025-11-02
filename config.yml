@@ -128,16 +128,19 @@ output:
 # PERFORMANCE SETTINGS
 # ========================================
 performance:
-  # Parallel processing (future feature)
-  enable_parallel: false
-  max_workers: 4
+  # Parallel processing for faster execution
+  enable_parallel: true
+  max_workers: 4                      # Number of concurrent workers
+  batch_size: 8                       # Process test cases in batches
 
-  # Rate limiting for API calls
-  api_rate_limit: 10  # requests per minute
+  # Rate limiting for API calls (to prevent overwhelming the API)
+  api_rate_limit: 60                  # requests per minute
+  rate_limit_delay: 1.0               # seconds between API calls when rate limiting
 
   # Retry settings for failed API calls
   max_retries: 3
-  retry_delay: 2  # seconds
+  retry_delay: 2                      # seconds
+  exponential_backoff: true           # Increase delay exponentially on retries
 
 # ========================================
 # ADVANCED SETTINGS
