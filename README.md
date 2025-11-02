@@ -144,17 +144,130 @@ Sophisticated prompt templates for:
 - **FEEDBACK_COLLECTOR**: Comprehensive performance analysis
 - **PROMPT_EVOLVER**: Systematic evolution based on patterns
 
-### Optimization Process
+### System Architecture
 
-1. **Load Configuration** - Read settings from `config.yml`
-2. **Load Test Data** - Import Excel data with validation
-3. **Generate Initial Prompt** - Create sophisticated starting prompt
-4. **Test Against All Data** - Evaluate performance across dataset
-5. **Check Target Achievement** - Determine if optimization complete
-6. **Feedback Analysis** - Collect comprehensive performance feedback
-7. **Evolve or Optimize** - Strategic improvement or targeted fixes
-8. **Iterate** - Repeat until target achieved or max iterations reached
-9. **Save Golden Prompt** - Output final optimized prompt
+```mermaid
+graph TB
+    subgraph "Input Layer"
+        A[config.yml]
+        B[Excel Test Data]
+        C[Use Case]
+    end
+
+    subgraph "PromptOptimizer Core"
+        D[Configuration Loader]
+        E[Data Validator]
+        F[Initial Prompt Generator]
+        G[Answer Generator]
+        H[Quality Scorer]
+        I[Feedback Collector]
+        J[Prompt Evolver]
+        K[Optimization Engine]
+    end
+
+    subgraph "Model Layer"
+        L[Claude Sonnet 4<br/>Initial Generation]
+        M[Claude Haiku 4<br/>Answer Testing]
+        N[Claude Sonnet 4<br/>Optimization]
+        O[Claude Sonnet 4<br/>Feedback Analysis]
+    end
+
+    subgraph "Output Layer"
+        P[Golden Prompt]
+        Q[Quality Metrics]
+        R[Optimization Results]
+    end
+
+    A --> D
+    B --> E
+    C --> F
+    D --> K
+    E --> K
+    F --> L
+    L --> G
+    G --> M
+    M --> H
+    H --> I
+    I --> O
+    O --> J
+    J --> N
+    N --> K
+    K --> P
+    K --> Q
+    K --> R
+
+    style A fill:#e1f5fe
+    style B fill:#e1f5fe
+    style C fill:#e1f5fe
+    style P fill:#c8e6c9
+    style Q fill:#c8e6c9
+    style R fill:#c8e6c9
+    style K fill:#fff3e0
+```
+
+### Optimization Process Flow
+
+```mermaid
+flowchart TD
+    START([Start Optimization]) --> LOAD[Load Configuration & Data]
+    LOAD --> INIT[Generate Initial Prompt<br/>using High-End Model]
+    INIT --> TEST[Test Prompt Against<br/>All Test Cases]
+    TEST --> SCORE[Calculate Quality Metrics<br/>Success Rate, Consistency, etc.]
+
+    SCORE --> TARGET{Target<br/>Achieved?}
+    TARGET -->|Yes| SAVE[Save Golden Prompt<br/>with Metadata]
+    TARGET -->|No| MAXITER{Max Iterations<br/>Reached?}
+
+    MAXITER -->|Yes| SAVE
+    MAXITER -->|No| FEEDBACK{Feedback<br/>Cycle?}
+
+    FEEDBACK -->|Yes| COLLECT[Collect Comprehensive<br/>Feedback & Patterns]
+    COLLECT --> EVOLVE[Evolve Prompt using<br/>Strategic Analysis]
+    EVOLVE --> TEST
+
+    FEEDBACK -->|No| OPTIMIZE[Quick Optimization<br/>based on Failed Case]
+    OPTIMIZE --> TEST
+
+    SAVE --> END([End - Golden Prompt Ready])
+
+    style START fill:#c8e6c9
+    style END fill:#c8e6c9
+    style TARGET fill:#fff3e0
+    style FEEDBACK fill:#fff3e0
+    style MAXITER fill:#fff3e0
+    style SAVE fill:#ffecb3
+```
+
+### Multi-Model Architecture
+
+```mermaid
+graph LR
+    subgraph "Generation Stage"
+        A[Use Case + Sample Data] --> B[Claude Sonnet 4<br/>Initial Prompt Generator]
+        B --> C[Sophisticated<br/>Initial Prompt]
+    end
+
+    subgraph "Testing Stage"
+        C --> D[Claude Haiku 4<br/>Answer Generator]
+        D --> E[Generated Responses]
+        E --> F[Quality Assessment]
+    end
+
+    subgraph "Optimization Stage"
+        F --> G{Performance<br/>Issues?}
+        G -->|Failed Cases| H[Claude Sonnet 4<br/>Prompt Optimizer]
+        G -->|Pattern Issues| I[Claude Sonnet 4<br/>Feedback Collector]
+        I --> J[Claude Sonnet 4<br/>Prompt Evolver]
+        H --> C
+        J --> C
+    end
+
+    style B fill:#ff9800
+    style D fill:#4caf50
+    style H fill:#ff9800
+    style I fill:#ff9800
+    style J fill:#ff9800
+```
 
 ## Advanced Features
 
