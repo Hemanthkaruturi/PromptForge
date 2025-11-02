@@ -86,6 +86,64 @@
    python main.py
    ```
 
+### Using the Streamlit Web Interface
+
+For a more interactive experience, you can use the Streamlit web interface:
+
+1. **Start the Streamlit app**
+   ```bash
+   streamlit run app.py
+   ```
+
+2. **Access the web interface**
+   - The app will automatically open in your browser at `http://localhost:8501`
+   - Or navigate to the URL shown in the terminal
+
+3. **Using the interface**
+
+   **Setup Tab (📝):**
+   - Enter your use case description
+   - Upload your golden data Excel file
+   - Preview your test data
+   - Download a sample template if needed
+
+   **Generate Tab (🚀):**
+   - Review your setup
+   - Click "Generate Golden Prompt" to start optimization
+   - Monitor real-time progress
+
+   **Results Tab (📊):**
+   - View performance metrics (success rate, quality scores)
+   - Review failed test cases
+   - Download the generated prompt (TXT)
+   - Download optimization results (JSON)
+
+4. **Configuration (⚙️ Sidebar):**
+   - Adjust optimization settings (max iterations, target success rate)
+   - Configure performance settings (parallel processing, workers)
+   - Save configuration changes
+
+### Command Line vs Web Interface
+
+**Use `python main.py` when:**
+- Running in automated pipelines
+- Prefer command-line workflows
+- Need to integrate with other scripts
+- Running on headless servers
+
+**Use `streamlit run app.py` when:**
+- Want visual feedback and progress tracking
+- Need to quickly adjust parameters
+- Prefer GUI over command line
+- Want to experiment with different configurations
+- Need to share with non-technical users
+
+Both methods:
+- Use the same underlying optimization engine
+- Support all configuration options
+- Generate identical results
+- Can be run independently
+
 ## Configuration Guide
 
 ### Model Configuration
@@ -330,10 +388,11 @@ Systematic improvement through:
 
 ```
 prompt_generator/
-├── main.py                              # Main application entry point
+├── main.py                              # Main CLI application entry point
+├── app.py                               # 🆕 Streamlit web interface
 ├── prompt_optimizer.py                  # Core optimization engine
 ├── config.yml                           # Configuration file
-├── golden_prompts/                      # 🆕 Generated prompts storage
+├── golden_prompts/                      # Generated prompts storage
 │   ├── PromptForge_v2.0.0_sentiment_20241102_143052.txt
 │   ├── PromptForge_v2.0.0_sentiment_20241102_143052_results.json
 │   └── ...                             # Organized by project, version, timestamp
