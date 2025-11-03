@@ -155,7 +155,12 @@ def main():
         if final_failed:
             print(f"\n⚠️  {len(final_failed)} cases still failing - consider manual review")
             print("First few failing cases:")
-            for i, (inp, exp, got) in enumerate(final_failed[:3]):
+            for i, case in enumerate(final_failed[:3]):
+                # Handle both (input, expected, actual) and (input, expected, actual, reason)
+                if len(case) == 4:
+                    inp, exp, got, _reason = case  # reason available but not displayed here
+                else:
+                    inp, exp, got = case
                 print(f"  {i+1}. Input: {inp[:30]}... Expected: {exp[:30]}... Got: {got[:30]}...")
 
         # Create golden_prompts directory if it doesn't exist

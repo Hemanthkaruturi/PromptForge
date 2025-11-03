@@ -447,11 +447,21 @@ def main():
         # Display failed cases if any
         if st.session_state.get('final_failed'):
             with st.expander(f"⚠️ Failed Cases ({len(st.session_state['final_failed'])} cases)"):
-                for i, (inp, exp, got) in enumerate(st.session_state['final_failed'][:5]):
-                    st.markdown(f"**Case {i+1}:**")
-                    st.markdown(f"- **Input:** {inp}")
-                    st.markdown(f"- **Expected:** {exp}")
-                    st.markdown(f"- **Got:** {got}")
+                for i, case in enumerate(st.session_state['final_failed'][:5]):
+                    # Handle both (input, expected, actual) and (input, expected, actual, reason)
+                    if len(case) == 4:
+                        inp, exp, got, reason = case
+                        st.markdown(f"**Case {i+1}:**")
+                        st.markdown(f"- **Input:** {inp}")
+                        st.markdown(f"- **Expected:** {exp}")
+                        st.markdown(f"- **Got:** {got}")
+                        st.markdown(f"- **Reason:** {reason}")
+                    else:
+                        inp, exp, got = case
+                        st.markdown(f"**Case {i+1}:**")
+                        st.markdown(f"- **Input:** {inp}")
+                        st.markdown(f"- **Expected:** {exp}")
+                        st.markdown(f"- **Got:** {got}")
                     st.markdown("---")
 
         # Display golden prompt
