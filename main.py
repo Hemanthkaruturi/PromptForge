@@ -1,6 +1,7 @@
 import pandas as pd
 import yaml
 import os
+import argparse
 from typing import List, Tuple
 from prompt_optimizer import PromptOptimizer
 
@@ -86,13 +87,23 @@ def load_excel_data(file_path: str = "data/golden_data.xlsx", config: dict = Non
 
 def main():
     """Main function to run the advanced golden prompt generator."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Advanced Golden Prompt Generator')
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='config.yml',
+        help='Path to configuration file (default: config.yml)'
+    )
+    args = parser.parse_args()
+
     print("Welcome to the Advanced Golden Prompt Generator! 🌟")
     print("Featuring: Enhanced Optimization, Feedback Loops & Quality Analytics")
     print("=" * 70)
 
     # Load configuration
-    print("📋 Loading configuration...")
-    config = load_config()
+    print(f"📋 Loading configuration from {args.config}...")
+    config = load_config(args.config)
 
     # Get use case from config or user input
     project_config = config.get('project', {})

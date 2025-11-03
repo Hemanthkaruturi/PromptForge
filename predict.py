@@ -2,6 +2,7 @@ import pandas as pd
 import yaml
 import os
 import glob
+import argparse
 from typing import List, Tuple, Dict, Optional
 from utils.llms import get_llm_response
 import time
@@ -294,11 +295,22 @@ def predict_on_actual_data(
 
 def main():
     """Main function to run predictions."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Golden Prompt Prediction Tool')
+    parser.add_argument(
+        '--config',
+        type=str,
+        default='config.yml',
+        help='Path to configuration file (default: config.yml)'
+    )
+    args = parser.parse_args()
+
     print("🌟 Golden Prompt Prediction Tool")
     print("=" * 70)
 
     # Load configuration
-    config = load_config()
+    print(f"📋 Loading configuration from {args.config}...")
+    config = load_config(args.config)
 
     # Check for golden prompt early
     print("\n🔍 Checking for golden prompt...")
