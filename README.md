@@ -12,6 +12,7 @@
 - **Iterative Refinement**: Systematically improves prompts through multiple optimization cycles
 - **Feedback-Driven Evolution**: Uses comprehensive failure analysis to evolve prompts
 - **Quality Scoring**: Multi-dimensional evaluation beyond simple accuracy metrics
+- **Confidence Validation**: Requires 3 consecutive perfect passes for high reliability
 
 ### **Multi-Model Architecture**
 - **Flexible Model Selection**: Use different models for generation vs testing
@@ -256,7 +257,14 @@ optimization:
   target_success_rate: 100        # Stop early if achieved
   feedback_frequency: 3           # Comprehensive feedback every N iterations
   min_quality_threshold: 85       # Minimum quality to consider "good"
+
+  # Confidence validation - ensures prompt stability
+  confidence_validation:
+    enabled: true                 # Require multiple consecutive passes
+    required_consecutive_passes: 3  # Number of consecutive 100% runs needed
 ```
+
+**Confidence Validation**: When enabled, the optimizer doesn't stop at the first perfect score. Instead, it tests the prompt 3 consecutive times to ensure consistent performance. This significantly reduces false positives from LLM variance and ensures your golden prompt is truly stable.
 
 ### Data Configuration
 Customize data loading and validation:
@@ -442,6 +450,46 @@ graph LR
 ```
 
 ## Advanced Features
+
+### Confidence Validation (High Reliability)
+Ensures prompt stability through multiple consecutive validation runs:
+
+```yaml
+optimization:
+  confidence_validation:
+    enabled: true
+    required_consecutive_passes: 3
+```
+
+**How it works:**
+1. When a prompt achieves 100% success on test cases, optimization doesn't stop immediately
+2. The prompt is tested 3 more times consecutively
+3. Only if ALL 3 validation runs pass at 100%, the prompt is accepted
+4. If any validation run fails, optimization continues to improve stability
+
+**Benefits:**
+- **Eliminates false positives**: LLM responses can vary; one perfect run might be lucky
+- **Ensures consistency**: Your golden prompt will work reliably in production
+- **Higher confidence**: Know your prompt is truly stable, not just lucky
+- **Production-ready**: Reduces the risk of prompt failures in real-world use
+
+**Example Output:**
+```
+✨ Perfect score achieved on iteration 5!
+🔒 Initiating confidence validation (3 consecutive passes required)...
+
+📊 Validation Run 1/3
+   ✅ PASS: 8/8 (100.0%)
+
+📊 Validation Run 2/3
+   ✅ PASS: 8/8 (100.0%)
+
+📊 Validation Run 3/3
+   ✅ PASS: 8/8 (100.0%)
+
+🎉 Confidence Validation PASSED!
+🏆 Golden prompt validated with high confidence!
+```
 
 ### Reasoning-Enhanced Training
 Include a `reason` column in your training data to improve optimization:

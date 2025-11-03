@@ -44,6 +44,10 @@ optimization:
   feedback_frequency: 3
   tests_per_iteration: 1
   early_stopping_patience: 5
+  confidence_validation:
+    enabled: true
+    required_consecutive_passes: 3
+    description: "Require multiple consecutive perfect passes for higher confidence"
 matching:
   method: exact
   case_sensitive: false

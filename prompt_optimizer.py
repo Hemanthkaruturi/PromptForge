@@ -409,6 +409,55 @@ class PromptOptimizer:
             "overall_quality": (success_rate + consistency_score + robustness_score) / 3
         }
 
+    def validate_prompt_confidence(self, prompt: str, test_data: List[Tuple],
+                                   required_passes: int = 3) -> Tuple[bool, List[Dict]]:
+        """
+        Validate prompt confidence by testing it multiple times consecutively.
+
+        Args:
+            prompt: The prompt to validate
+            test_data: Test data to use
+            required_passes: Number of consecutive perfect passes required
+
+        Returns:
+            Tuple of (passed, validation_results)
+        """
+        print(f"\n🔒 Confidence Validation: Testing prompt {required_passes} consecutive times...")
+        print("=" * 70)
+
+        validation_results = []
+
+        for run_num in range(1, required_passes + 1):
+            print(f"\n📊 Validation Run {run_num}/{required_passes}")
+
+            successful_matches, total_tests, failed_cases = self.test_prompt_with_data(
+                prompt, test_data, verbose=False
+            )
+
+            success_rate = (successful_matches / total_tests * 100) if total_tests > 0 else 0
+            passed = successful_matches == total_tests
+
+            validation_results.append({
+                "run": run_num,
+                "success_rate": success_rate,
+                "passed": passed,
+                "successful": successful_matches,
+                "total": total_tests,
+                "failed": len(failed_cases)
+            })
+
+            status = "✅ PASS" if passed else "❌ FAIL"
+            print(f"   {status}: {successful_matches}/{total_tests} ({success_rate:.1f}%)")
+
+            if not passed:
+                print(f"\n⚠️  Confidence validation failed on run {run_num}")
+                print(f"   Prompt did not achieve 100% success on all validation runs")
+                return False, validation_results
+
+        print(f"\n🎉 Confidence Validation PASSED!")
+        print(f"   Prompt achieved 100% success on all {required_passes} consecutive runs")
+        return True, validation_results
+
     def create_golden_prompt(self, use_case: str, test_data: List[Tuple],
                            max_iterations: int = 15) -> str:
         """
@@ -480,10 +529,33 @@ class PromptOptimizer:
                 best_prompt = current_prompt
                 print(f"🏆 New best prompt! Quality score: {overall_quality:.1f}")
 
-            # Perfect score achieved
+            # Perfect score achieved - now validate confidence
             if successful_matches == total_tests:
-                print(f"\n🎉 Perfect score achieved! Golden prompt ready.")
-                break
+                print(f"\n✨ Perfect score achieved on iteration {iteration}!")
+
+                # Check if confidence validation is enabled
+                confidence_config = self.config.get('optimization', {}).get('confidence_validation', {})
+                confidence_enabled = confidence_config.get('enabled', False)
+                required_passes = confidence_config.get('required_consecutive_passes', 3)
+
+                if confidence_enabled:
+                    print(f"🔒 Initiating confidence validation ({required_passes} consecutive passes required)...")
+
+                    # Run confidence validation
+                    confidence_passed, validation_results = self.validate_prompt_confidence(
+                        current_prompt, test_data, required_passes
+                    )
+
+                    if confidence_passed:
+                        print(f"\n🏆 Golden prompt validated with high confidence!")
+                        break
+                    else:
+                        print(f"\n⚠️  Prompt passed once but failed confidence validation")
+                        print(f"   Continuing optimization to improve stability...")
+                        # Continue optimization - don't break
+                else:
+                    print(f"\n🎉 Golden prompt ready (confidence validation disabled).")
+                    break
 
             # Advanced feedback-based optimization every 3 iterations
             if iteration % 3 == 0 and iteration > 2:
