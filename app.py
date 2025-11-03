@@ -62,12 +62,14 @@ def save_config(config: dict, config_file: str = "config.yml"):
         return False
 
 
-def load_excel_data(file_path: str = None, uploaded_file=None) -> Tuple[List[Tuple[str, str]], pd.DataFrame]:
+def load_excel_data(file_path: str = None, uploaded_file=None) -> Tuple[List[Tuple], pd.DataFrame]:
     """
     Load input and expected output data from Excel file.
+    Optionally includes reason column if present.
 
     Returns:
         Tuple of (data_pairs, dataframe)
+        where data_pairs is a list of tuples: (input_data, expected_output) or (input_data, expected_output, reason)
     """
     try:
         if uploaded_file is not None:
@@ -86,12 +88,23 @@ def load_excel_data(file_path: str = None, uploaded_file=None) -> Tuple[List[Tup
             input_col = 'input_data'
             output_col = 'expected_output'
 
+        # Check if reason column exists
+        has_reason = 'reason' in df.columns
+
         data_pairs = []
         for _, row in df.iterrows():
             input_data = str(row[input_col]).strip()
             expected_output = str(row[output_col]).strip()
             if input_data and expected_output and input_data != 'nan' and expected_output != 'nan':
-                data_pairs.append((input_data, expected_output))
+                if has_reason:
+                    reason = str(row['reason']).strip()
+                    # Only include reason if it's not empty or 'nan'
+                    if reason and reason != 'nan':
+                        data_pairs.append((input_data, expected_output, reason))
+                    else:
+                        data_pairs.append((input_data, expected_output))
+                else:
+                    data_pairs.append((input_data, expected_output))
 
         return data_pairs, df
 
@@ -250,7 +263,15 @@ def main():
             data_pairs, df = load_excel_data(uploaded_file=uploaded_file)
 
             if data_pairs:
-                st.success(f"✅ Loaded {len(data_pairs)} test cases successfully!")
+                # Check if reason column is present
+                has_reason = any(len(pair) == 3 for pair in data_pairs)
+                reason_count = sum(1 for pair in data_pairs if len(pair) == 3)
+
+                if has_reason:
+                    st.success(f"✅ Loaded {len(data_pairs)} test cases successfully! ({reason_count} with reasoning)")
+                    st.info("💡 Reason column detected! This will be used to improve prompt optimization.")
+                else:
+                    st.success(f"✅ Loaded {len(data_pairs)} test cases successfully!")
 
                 # Preview data
                 st.subheader("📋 Data Preview")
@@ -266,7 +287,16 @@ def main():
             if st.checkbox("📁 Use existing data/golden_data.xlsx"):
                 data_pairs, df = load_excel_data(file_path='data/golden_data.xlsx')
                 if data_pairs:
-                    st.success(f"✅ Loaded {len(data_pairs)} test cases from default file!")
+                    # Check if reason column is present
+                    has_reason = any(len(pair) == 3 for pair in data_pairs)
+                    reason_count = sum(1 for pair in data_pairs if len(pair) == 3)
+
+                    if has_reason:
+                        st.success(f"✅ Loaded {len(data_pairs)} test cases from default file! ({reason_count} with reasoning)")
+                        st.info("💡 Reason column detected! This will be used to improve prompt optimization.")
+                    else:
+                        st.success(f"✅ Loaded {len(data_pairs)} test cases from default file!")
+
                     st.subheader("📋 Data Preview")
                     st.dataframe(df, use_container_width=True)
                     st.session_state['test_data'] = data_pairs
@@ -468,7 +498,7 @@ def main():
             st.download_button(
                 label="📊 Download Results (JSON)",
                 data=json.dumps(results_summary, indent=2),
-                file_name="optimization_results.json",
+                file_name="results.json",
                 mime="application/json",
                 use_container_width=True
             )

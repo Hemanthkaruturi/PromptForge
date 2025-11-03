@@ -18,15 +18,16 @@ def load_config(config_file: str = "config.yml") -> dict:
         return {}
 
 
-def load_excel_data(file_path: str = "data/golden_data.xlsx", config: dict = None) -> List[Tuple[str, str]]:
+def load_excel_data(file_path: str = "data/golden_data.xlsx", config: dict = None) -> List[Tuple]:
     """
     Load input and expected output data from Excel file.
+    Optionally includes reason column if present.
 
     Args:
         file_path: Path to the Excel file
 
     Returns:
-        List of tuples containing (input_data, expected_output)
+        List of tuples: (input_data, expected_output) or (input_data, expected_output, reason)
     """
     try:
         df = pd.read_excel(file_path)
@@ -44,14 +45,29 @@ def load_excel_data(file_path: str = "data/golden_data.xlsx", config: dict = Non
             input_col = 'input_data'
             output_col = 'expected_output'
 
+        # Check if reason column exists
+        has_reason = 'reason' in df.columns
+
         data_pairs = []
         for _, row in df.iterrows():
             input_data = str(row[input_col]).strip()
             expected_output = str(row[output_col]).strip()
             if input_data and expected_output and input_data != 'nan' and expected_output != 'nan':
-                data_pairs.append((input_data, expected_output))
+                if has_reason:
+                    reason = str(row['reason']).strip()
+                    # Only include reason if it's not empty or 'nan'
+                    if reason and reason != 'nan':
+                        data_pairs.append((input_data, expected_output, reason))
+                    else:
+                        data_pairs.append((input_data, expected_output))
+                else:
+                    data_pairs.append((input_data, expected_output))
 
-        print(f"📊 Loaded {len(data_pairs)} test cases from Excel file")
+        reason_count = sum(1 for pair in data_pairs if len(pair) == 3)
+        if reason_count > 0:
+            print(f"📊 Loaded {len(data_pairs)} test cases from Excel file ({reason_count} with reasoning)")
+        else:
+            print(f"📊 Loaded {len(data_pairs)} test cases from Excel file")
         return data_pairs
 
     except Exception as e:
@@ -148,18 +164,13 @@ def main():
 
         # Get project info from config
         project_config = config.get('project', {})
-        project_name = project_config.get('name', 'PromptForge').replace(' ', '_')
-        project_version = project_config.get('version', '2.0.0')
+        project_name = project_config.get('name', 'PromptForge')
 
         # Generate timestamp
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
 
-        # Create safe use case name for filename
-        safe_use_case = ''.join(c for c in use_case if c.isalnum() or c in (' ', '-', '_')).rstrip()[:50]
-        safe_use_case = safe_use_case.replace(' ', '_')
-
-        # Create filename with project name, version, and timestamp
-        filename = f"{project_name}_v{project_version}_{safe_use_case}_{timestamp}.txt"
+        # Create shorter, cleaner filename
+        filename = f"golden_prompt_{timestamp}.txt"
         filepath = os.path.join(golden_prompts_dir, filename)
 
         # Save results based on config
@@ -169,15 +180,12 @@ def main():
         # Save in golden_prompts folder with detailed naming
         with open(filepath, "w") as f:
             if include_metadata:
-                f.write(f"# Golden Prompt - {project_name} v{project_version}\n")
-                f.write(f"# Generated on: {pd.Timestamp.now()}\n")
+                f.write(f"# Golden Prompt - {project_name}\n")
+                f.write(f"# Generated: {pd.Timestamp.now()}\n")
                 f.write(f"# Use Case: {use_case}\n")
                 f.write(f"# Test Cases: {len(test_data)}\n")
-                f.write(f"# Final Success Rate: {final_quality['success_rate']:.1f}%\n")
+                f.write(f"# Success Rate: {final_quality['success_rate']:.1f}%\n")
                 f.write(f"# Quality Score: {final_quality['overall_quality']:.1f}/100\n")
-                f.write(f"# Consistency Score: {final_quality['consistency_score']:.1f}/100\n")
-                f.write(f"# Robustness Score: {final_quality['robustness_score']:.1f}/100\n")
-                f.write(f"# Configuration: {config.get('optimization', {})}\n")
                 f.write(f"#{'='*60}\n\n")
             f.write(golden_prompt)
 
@@ -196,13 +204,12 @@ def main():
         if results_file or True:  # Always save results
             import json
 
-            # Save results in golden_prompts folder with similar naming
-            results_filename = f"{project_name}_v{project_version}_{safe_use_case}_{timestamp}_results.json"
+            # Save results in golden_prompts folder with shorter naming
+            results_filename = f"results_{timestamp}.json"
             results_filepath = os.path.join(golden_prompts_dir, results_filename)
 
             results_summary = {
                 "project_name": project_name,
-                "project_version": project_version,
                 "use_case": use_case,
                 "timestamp": pd.Timestamp.now().isoformat(),
                 "test_cases_count": len(test_data),
@@ -211,8 +218,7 @@ def main():
                 "consistency_score": final_quality['consistency_score'],
                 "robustness_score": final_quality['robustness_score'],
                 "failed_cases_count": len(final_failed) if final_failed else 0,
-                "prompt_file": filename,
-                "config_used": config
+                "prompt_file": filename
             }
 
             # Save to golden_prompts folder

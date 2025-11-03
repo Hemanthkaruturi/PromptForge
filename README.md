@@ -40,6 +40,12 @@
 - **Rich Metadata**: Comprehensive performance metrics and configuration tracking
 - **JSON Results**: Structured optimization results with detailed analytics
 
+## Overview
+
+**PromptForge** provides a complete workflow:
+1. **Generate Golden Prompts**: Create optimized prompts from test data with expected outputs
+2. **Apply to Production**: Use the golden prompt on actual data to generate predictions with reasoning
+
 ## Quick Start
 
 ### Installation
@@ -68,6 +74,7 @@
 
 1. **Prepare your test data**
    - Create an Excel file with `input_data` and `expected_output` columns
+   - Optionally add a `reason` column to explain expected outputs (improves optimization)
    - Place it in `data/golden_data.xlsx`
 
 2. **Configure your optimization**
@@ -144,6 +151,79 @@ Both methods:
 - Generate identical results
 - Can be run independently
 
+## Applying Golden Prompts to Actual Data
+
+Once you've generated a golden prompt, use it to make predictions on actual data:
+
+### 1. Prepare Your Actual Data
+
+Create `data/actual_data.xlsx` with an `input_data` column:
+
+```
+| input_data                                    |
+|-----------------------------------------------|
+| A fintech startup with cloud infrastructure   |
+| A local store using basic POS system          |
+| Healthcare provider with EHR systems          |
+```
+
+### 2. Run Predictions
+
+```bash
+python predict.py
+```
+
+This will:
+- Check if a golden prompt exists (exits gracefully with helpful message if not)
+- Automatically find the latest golden prompt
+- Load data from `data/actual_data.xlsx`
+- Generate predictions with reasoning for each input
+- Save results to `data/predicted_data.xlsx`
+
+**Note**: If you run `predict.py` without first generating a golden prompt, you'll see:
+```
+⚠️  WARNING: No golden prompt found!
+
+Please generate a golden prompt first:
+  Option 1: python main.py
+  Option 2: streamlit run app.py
+```
+
+### 3. Check Results
+
+The output file `data/predicted_data.xlsx` contains:
+
+```
+| input_data              | predicted_output | reason                              |
+|------------------------|------------------|-------------------------------------|
+| A fintech startup...   | high             | High dependency due to cloud...     |
+| A local store...       | low              | Low dependency as systems are...    |
+```
+
+### Prediction Features
+
+- **Automatic Prompt Discovery**: Finds the latest golden prompt automatically
+- **Reasoning Generation**: Not just predictions, but explanations too
+- **Rate Limiting**: Respects API limits from config
+- **Error Handling**: Continues processing even if some predictions fail
+- **Progress Tracking**: Real-time progress with result previews
+
+### Programmatic Usage
+
+```python
+from predict import predict_on_actual_data
+
+# Use defaults
+result_df = predict_on_actual_data()
+
+# Or customize
+result_df = predict_on_actual_data(
+    actual_data_file="my_data.xlsx",
+    output_file="my_predictions.xlsx",
+    prompt_file="specific_prompt.txt"
+)
+```
+
 ## Configuration Guide
 
 ### Model Configuration
@@ -183,7 +263,9 @@ Customize data loading and validation:
 
 ```yaml
 data:
-  excel_file: "data/golden_data.xlsx"
+  excel_file: "data/golden_data.xlsx"           # Training data with expected outputs
+  actual_data_file: "data/actual_data.xlsx"     # Production data for predictions
+  predicted_data_file: "data/predicted_data.xlsx" # Output file for predictions
   input_column: "input_data"
   output_column: "expected_output"
   max_test_cases: 100            # Limit test cases (0 = no limit)
@@ -361,6 +443,21 @@ graph LR
 
 ## Advanced Features
 
+### Reasoning-Enhanced Training
+Include a `reason` column in your training data to improve optimization:
+
+```
+| input_data                     | expected_output | reason                                |
+|-------------------------------|-----------------|---------------------------------------|
+| A fintech startup with APIs   | high            | High dependency due to cloud infra... |
+| A local store with basic POS  | low             | Minimal IT systems required...        |
+```
+
+When present, the optimizer uses these explanations to:
+- Better understand the logic behind classifications
+- Refine prompts with contextual understanding
+- Generate more accurate reasoning in predictions
+
 ### Multi-Model Testing
 Generate prompts with powerful models, test with production models:
 ```yaml
@@ -388,20 +485,23 @@ Systematic improvement through:
 
 ```
 prompt_generator/
-├── main.py                              # Main CLI application entry point
-├── app.py                               # 🆕 Streamlit web interface
+├── main.py                              # Main CLI application for prompt generation
+├── app.py                               # Streamlit web interface for prompt generation
+├── predict.py                           # 🆕 Prediction tool for applying prompts to actual data
 ├── prompt_optimizer.py                  # Core optimization engine
 ├── config.yml                           # Configuration file
 ├── golden_prompts/                      # Generated prompts storage
-│   ├── PromptForge_v2.0.0_sentiment_20241102_143052.txt
-│   ├── PromptForge_v2.0.0_sentiment_20241102_143052_results.json
-│   └── ...                             # Organized by project, version, timestamp
+│   ├── golden_prompt_20241103_120000.txt
+│   ├── results_20241103_120000.json
+│   └── ...                             # Timestamped versions
 ├── prompts/
 │   └── prompts.yml                      # Advanced prompt templates
 ├── utils/
 │   └── llms.py                         # LLM integration utilities
 ├── data/
-│   └── golden_data.xlsx                # Test data (Excel format)
+│   ├── golden_data.xlsx                # Training data (with expected_output column)
+│   ├── actual_data.xlsx                # Production data (input_data only)
+│   └── predicted_data.xlsx             # Predictions output (generated by predict.py)
 ├── pyproject.toml                      # Python dependencies
 ├── golden_prompt.txt                   # Latest prompt (backward compatibility)
 └── README.md                           # This file
@@ -452,6 +552,44 @@ optimization:
   min_quality_threshold: 90
 ```
 
+### Example 4: Complete Workflow - Training and Prediction
+
+**Step 1: Create training data** (`data/golden_data.xlsx`):
+```
+| input_data                                    | expected_output | reason                          |
+|-----------------------------------------------|-----------------|----------------------------------|
+| A fintech startup with cloud infrastructure   | high            | Heavy reliance on digital...    |
+| A local grocery store with basic POS          | low             | Minimal IT dependency...        |
+```
+
+**Step 2: Generate golden prompt**:
+```bash
+python main.py
+# or
+streamlit run app.py
+```
+
+**Step 3: Prepare production data** (`data/actual_data.xlsx`):
+```
+| input_data                                    |
+|-----------------------------------------------|
+| A healthcare provider with EHR systems        |
+| A manufacturing company with IoT sensors      |
+```
+
+**Step 4: Run predictions**:
+```bash
+python predict.py
+```
+
+**Step 5: Review results** (`data/predicted_data.xlsx`):
+```
+| input_data                    | predicted_output | reason                              |
+|------------------------------|------------------|-------------------------------------|
+| A healthcare provider...     | high             | High dependency due to EHR...       |
+| A manufacturing company...   | high             | Extensive IoT infrastructure...     |
+```
+
 ## Testing the Core Engine
 
 Test the optimization engine directly:
@@ -467,21 +605,33 @@ This launches an interactive mode where you can:
 
 ## Output Files
 
-### Generated Files
-- **`golden_prompt.txt`**: The final optimized prompt
-- **`golden_prompt_YYYYMMDD_HHMMSS.txt`**: Timestamped version with metadata
-- **`optimization_results.json`**: Detailed optimization metrics (if configured)
+### Prompt Generation Files
+- **`golden_prompt.txt`**: The final optimized prompt (root directory)
+- **`golden_prompts/golden_prompt_YYYYMMDD_HHMMSS.txt`**: Timestamped version with metadata
+- **`golden_prompts/results_YYYYMMDD_HHMMSS.json`**: Detailed optimization metrics
 
-### Metadata Included
+### Prediction Files
+- **`data/predicted_data.xlsx`**: Predictions with reasoning
+  - Columns: `input_data`, `predicted_output`, `reason`
+
+### Metadata Included (in golden prompt files)
 - Generation timestamp
 - Use case description
 - Test case count
 - Final success rate and quality scores
-- Configuration used
+- Configuration used (in JSON files)
 
 ## Troubleshooting
 
 ### Common Issues
+
+**No golden prompt found when running predictions:**
+```
+⚠️  WARNING: No golden prompt found!
+```
+- **Solution**: Generate a golden prompt first using `python main.py` or `streamlit run app.py`
+- The prediction tool requires an existing golden prompt to work
+- Check if `golden_prompt.txt` or `golden_prompts/` directory exists
 
 **Configuration not loading:**
 ```
@@ -496,6 +646,8 @@ This launches an interactive mode where you can:
 ```
 - Verify the Excel file path in config
 - Ensure file has correct column names
+- For predictions: file must have `input_data` column
+- For training: file must have `input_data` and `expected_output` columns
 
 **API key issues:**
 ```

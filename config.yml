@@ -5,6 +5,8 @@ project:
     into high, medium or low.
 data:
   excel_file: data/golden_data.xlsx
+  actual_data_file: data/actual_data.xlsx
+  predicted_data_file: data/predicted_data.xlsx
   input_column: input_data
   output_column: expected_output
   skip_empty_rows: true

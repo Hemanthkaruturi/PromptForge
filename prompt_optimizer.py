@@ -115,15 +115,24 @@ class PromptOptimizer:
             return match.group(1).strip()
         return response.strip()
 
-    def generate_initial_prompt(self, use_case: str, input_data: str, output_data: str) -> str:
+    def generate_initial_prompt(self, use_case: str, input_data: str, output_data: str, reason: Optional[str] = None) -> str:
         """Generate initial prompt using the enhanced prompt generator."""
         prompt_template = self.prompts["INITIAL_PROMPT_GENERATOR"]
 
-        formatted_prompt = prompt_template.format(
-            use_case=use_case,
-            input_data=input_data,
-            output_data=output_data
-        )
+        # Add reason context if available
+        if reason:
+            reason_context = f"\n\nReasoning for expected output:\n{reason}\n\nUse this reasoning to understand the logic and patterns that should be applied."
+            formatted_prompt = prompt_template.format(
+                use_case=use_case,
+                input_data=input_data,
+                output_data=output_data
+            ) + reason_context
+        else:
+            formatted_prompt = prompt_template.format(
+                use_case=use_case,
+                input_data=input_data,
+                output_data=output_data
+            )
 
         response = self._call_llm(formatted_prompt, "initial_prompt_generator")
         return self._extract_prompt_from_response(response)
@@ -140,7 +149,7 @@ class PromptOptimizer:
         return self._call_llm(formatted_prompt, "answer_generator")
 
     def optimize_prompt(self, current_prompt: str, input_data: str,
-                       actual_output: str, expected_output: str) -> str:
+                       actual_output: str, expected_output: str, reason: Optional[str] = None) -> str:
         """Optimize prompt based on the mismatch between actual and expected output."""
         optimizer_template = self.prompts["PROMPT_OPTIMIZER"]
 
@@ -151,19 +160,35 @@ class PromptOptimizer:
             actual_output=expected_output
         )
 
+        # Add reason context if available
+        if reason:
+            reason_context = f"\n\nReasoning for why the expected output is correct:\n{reason}\n\nUse this reasoning to refine the prompt to better capture the underlying logic."
+            formatted_prompt += reason_context
+
         response = self._call_llm(formatted_prompt, "prompt_optimizer")
         return self._extract_prompt_from_response(response)
 
     def collect_feedback(self, prompt: str, success_rate: float, successful_cases: int,
-                        total_cases: int, failed_cases: List[Tuple[str, str, str]]) -> str:
+                        total_cases: int, failed_cases: List[Tuple]) -> str:
         """Collect comprehensive feedback on prompt performance."""
         feedback_template = self.prompts["FEEDBACK_COLLECTOR"]
 
         # Format failed cases for analysis
-        failed_cases_text = "\n".join([
-            f"Input: {input_data}\nExpected: {expected}\nGot: {actual}\n---"
-            for input_data, expected, actual in failed_cases[:5]  # Limit to 5 examples
-        ])
+        # Each failed case can be (input, expected, actual) or (input, expected, actual, reason)
+        failed_cases_list = []
+        for case in failed_cases[:5]:  # Limit to 5 examples
+            if len(case) == 4:
+                input_data, expected, actual, reason = case
+                failed_cases_list.append(
+                    f"Input: {input_data}\nExpected: {expected}\nGot: {actual}\nReason for expected output: {reason}\n---"
+                )
+            else:
+                input_data, expected, actual = case
+                failed_cases_list.append(
+                    f"Input: {input_data}\nExpected: {expected}\nGot: {actual}\n---"
+                )
+
+        failed_cases_text = "\n".join(failed_cases_list)
 
         formatted_prompt = feedback_template.format(
             prompt=prompt,
@@ -195,7 +220,8 @@ class PromptOptimizer:
         return actual_output.strip().lower() == expected_output.strip().lower()
 
     def _test_single_case(self, prompt: str, input_data: str, expected_output: str,
-                         case_index: int, total_cases: int, verbose: bool = True) -> Tuple[bool, str, int]:
+                         case_index: int, total_cases: int, reason: Optional[str] = None,
+                         verbose: bool = True) -> Tuple[bool, str, int, Optional[str]]:
         """Test a single case and return results."""
         try:
             # Add rate limiting if configured
@@ -213,24 +239,25 @@ class PromptOptimizer:
                     print(f"      Expected: {expected_output[:50]}...")
                     print(f"      Got: {actual_output[:50]}...")
 
-            return is_match, actual_output, case_index
+            return is_match, actual_output, case_index, reason
         except Exception as e:
             if verbose:
                 print(f"   ❌ Test {case_index+1}/{total_cases}: Error - {str(e)}")
-            return False, str(e), case_index
+            return False, str(e), case_index, reason
 
-    def test_prompt_with_data(self, prompt: str, test_data: List[Tuple[str, str]],
-                             verbose: bool = True) -> Tuple[int, int, List[Tuple[str, str, str]]]:
+    def test_prompt_with_data(self, prompt: str, test_data: List[Tuple],
+                             verbose: bool = True) -> Tuple[int, int, List[Tuple]]:
         """
         Test a prompt against all test cases with optional parallel processing.
 
         Args:
             prompt: The prompt to test
-            test_data: List of (input_data, expected_output) tuples
+            test_data: List of (input_data, expected_output) or (input_data, expected_output, reason) tuples
             verbose: Whether to print detailed results
 
         Returns:
             Tuple of (successful_matches, total_tests, failed_cases)
+            where failed_cases can contain (input, expected, actual) or (input, expected, actual, reason)
         """
         successful_matches = 0
         total_tests = len(test_data)
@@ -256,32 +283,46 @@ class PromptOptimizer:
 
                     with ThreadPoolExecutor(max_workers=max_workers) as executor:
                         # Submit all tasks in the current batch
-                        future_to_case = {
-                            executor.submit(
+                        future_to_case = {}
+                        for i, case in enumerate(batch):
+                            # Unpack case - could be 2 or 3 elements
+                            if len(case) == 3:
+                                input_data, expected_output, reason = case
+                            else:
+                                input_data, expected_output = case
+                                reason = None
+
+                            future = executor.submit(
                                 self._test_single_case,
                                 prompt,
                                 input_data,
                                 expected_output,
                                 batch_idx * batch_size + i,
                                 total_tests,
+                                reason,
                                 verbose
-                            ): (input_data, expected_output, batch_idx * batch_size + i)
-                            for i, (input_data, expected_output) in enumerate(batch)
-                        }
+                            )
+                            future_to_case[future] = (input_data, expected_output, reason, batch_idx * batch_size + i)
 
                         # Collect results
                         for future in as_completed(future_to_case):
-                            input_data, expected_output, case_index = future_to_case[future]
+                            input_data, expected_output, reason, case_index = future_to_case[future]
                             try:
-                                is_match, actual_output, _ = future.result()
+                                is_match, actual_output, _, _ = future.result()
                                 if is_match:
                                     successful_matches += 1
                                 else:
-                                    failed_cases.append((input_data, expected_output, actual_output))
+                                    if reason:
+                                        failed_cases.append((input_data, expected_output, actual_output, reason))
+                                    else:
+                                        failed_cases.append((input_data, expected_output, actual_output))
                             except Exception as e:
                                 if verbose:
                                     print(f"   ❌ Test {case_index+1}/{total_tests}: Exception - {str(e)}")
-                                failed_cases.append((input_data, expected_output, f"Error: {str(e)}"))
+                                if reason:
+                                    failed_cases.append((input_data, expected_output, f"Error: {str(e)}", reason))
+                                else:
+                                    failed_cases.append((input_data, expected_output, f"Error: {str(e)}"))
 
                     # Add delay between batches to respect rate limits
                     if batch_idx < len(batches) - 1 and performance_config.get('rate_limit_delay', 0) > 0:
@@ -298,8 +339,8 @@ class PromptOptimizer:
 
         return successful_matches, total_tests, failed_cases
 
-    def _test_sequential(self, prompt: str, test_data: List[Tuple[str, str]],
-                        verbose: bool = True) -> Tuple[int, int, List[Tuple[str, str, str]]]:
+    def _test_sequential(self, prompt: str, test_data: List[Tuple],
+                        verbose: bool = True) -> Tuple[int, int, List[Tuple]]:
         """Fallback sequential testing method."""
         successful_matches = 0
         total_tests = len(test_data)
@@ -308,8 +349,15 @@ class PromptOptimizer:
         performance_config = self.config.get('performance', {})
         rate_limit_delay = performance_config.get('rate_limit_delay', 0)
 
-        for i, (input_data, expected_output) in enumerate(test_data):
+        for i, case in enumerate(test_data):
             try:
+                # Unpack case - could be 2 or 3 elements
+                if len(case) == 3:
+                    input_data, expected_output, reason = case
+                else:
+                    input_data, expected_output = case
+                    reason = None
+
                 # Add rate limiting
                 if rate_limit_delay > 0:
                     time.sleep(rate_limit_delay)
@@ -321,7 +369,10 @@ class PromptOptimizer:
                     if verbose:
                         print(f"   ✅ Test {i+1}/{total_tests}: Match found")
                 else:
-                    failed_cases.append((input_data, expected_output, actual_output))
+                    if reason:
+                        failed_cases.append((input_data, expected_output, actual_output, reason))
+                    else:
+                        failed_cases.append((input_data, expected_output, actual_output))
                     if verbose:
                         print(f"   ❌ Test {i+1}/{total_tests}: Mismatch")
                         print(f"      Expected: {expected_output[:50]}...")
@@ -329,11 +380,14 @@ class PromptOptimizer:
             except Exception as e:
                 if verbose:
                     print(f"   ❌ Test {i+1}/{total_tests}: Error - {str(e)}")
-                failed_cases.append((input_data, expected_output, f"Error: {str(e)}"))
+                if reason:
+                    failed_cases.append((input_data, expected_output, f"Error: {str(e)}", reason))
+                else:
+                    failed_cases.append((input_data, expected_output, f"Error: {str(e)}"))
 
         return successful_matches, total_tests, failed_cases
 
-    def calculate_quality_score(self, prompt: str, test_data: List[Tuple[str, str]]) -> Dict[str, float]:
+    def calculate_quality_score(self, prompt: str, test_data: List[Tuple]) -> Dict[str, float]:
         """Calculate comprehensive quality metrics for a prompt."""
         successful_matches, total_tests, _ = self.test_prompt_with_data(
             prompt, test_data, verbose=False
@@ -355,14 +409,14 @@ class PromptOptimizer:
             "overall_quality": (success_rate + consistency_score + robustness_score) / 3
         }
 
-    def create_golden_prompt(self, use_case: str, test_data: List[Tuple[str, str]],
+    def create_golden_prompt(self, use_case: str, test_data: List[Tuple],
                            max_iterations: int = 15) -> str:
         """
         Create a golden prompt through iterative optimization with advanced feedback loops.
 
         Args:
             use_case: Description of the task
-            test_data: List of (input_data, expected_output) tuples
+            test_data: List of (input_data, expected_output) or (input_data, expected_output, reason) tuples
             max_iterations: Maximum number of optimization iterations
 
         Returns:
@@ -378,9 +432,15 @@ class PromptOptimizer:
         print("-" * 70)
 
         # Use first test case to generate initial prompt
-        sample_input, sample_output = test_data[0]
-        print("🔨 Generating initial prompt with enhanced analysis...")
-        current_prompt = self.generate_initial_prompt(use_case, sample_input, sample_output)
+        first_case = test_data[0]
+        if len(first_case) == 3:
+            sample_input, sample_output, sample_reason = first_case
+            print("🔨 Generating initial prompt with enhanced analysis (with reasoning)...")
+            current_prompt = self.generate_initial_prompt(use_case, sample_input, sample_output, sample_reason)
+        else:
+            sample_input, sample_output = first_case
+            print("🔨 Generating initial prompt with enhanced analysis...")
+            current_prompt = self.generate_initial_prompt(use_case, sample_input, sample_output)
         print("✅ Initial prompt created")
 
         best_prompt = current_prompt
@@ -439,11 +499,19 @@ class PromptOptimizer:
                 # Standard optimization for immediate failures
                 if failed_cases:
                     # Use the most representative failed case
-                    input_data, expected_output, actual_output = failed_cases[0]
-                    print(f"🔧 Optimizing based on failed case...")
-                    current_prompt = self.optimize_prompt(
-                        current_prompt, input_data, actual_output, expected_output
-                    )
+                    first_failed = failed_cases[0]
+                    if len(first_failed) == 4:
+                        input_data, expected_output, actual_output, reason = first_failed
+                        print(f"🔧 Optimizing based on failed case (with reasoning)...")
+                        current_prompt = self.optimize_prompt(
+                            current_prompt, input_data, actual_output, expected_output, reason
+                        )
+                    else:
+                        input_data, expected_output, actual_output = first_failed
+                        print(f"🔧 Optimizing based on failed case...")
+                        current_prompt = self.optimize_prompt(
+                            current_prompt, input_data, actual_output, expected_output
+                        )
                 else:
                     # This shouldn't happen if we didn't achieve 100%
                     break
@@ -526,20 +594,16 @@ if __name__ == "__main__":
         import pandas as pd
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
 
-        # Create safe use case name for filename
-        safe_use_case = ''.join(c for c in use_case if c.isalnum() or c in (' ', '-', '_')).rstrip()[:50]
-        safe_use_case = safe_use_case.replace(' ', '_')
-
-        filename = f"PromptForge_v2.0.0_TEST_{safe_use_case}_{timestamp}.txt"
+        # Shorter, cleaner file names
+        filename = f"golden_prompt_{timestamp}.txt"
         filepath = os.path.join(golden_prompts_dir, filename)
 
         # Save the result
         with open(filepath, "w") as f:
-            f.write(f"# Test Golden Prompt - PromptForge v2.0.0\n")
-            f.write(f"# Generated on: {pd.Timestamp.now()}\n")
+            f.write(f"# Golden Prompt\n")
+            f.write(f"# Generated: {pd.Timestamp.now()}\n")
             f.write(f"# Use Case: {use_case}\n")
             f.write(f"# Test Cases: {len(test_data)}\n")
-            f.write(f"# Mode: Interactive Test\n")
             f.write(f"#{'='*60}\n\n")
             f.write(golden_prompt)
 
@@ -557,14 +621,11 @@ if __name__ == "__main__":
         print(f"🎯 Quality Score: {quality['overall_quality']:.1f}/100")
 
         # Also save test results
-        results_filename = f"PromptForge_v2.0.0_TEST_{safe_use_case}_{timestamp}_results.json"
+        results_filename = f"results_{timestamp}.json"
         results_filepath = os.path.join(golden_prompts_dir, results_filename)
 
         import json
         test_results = {
-            "project_name": "PromptForge",
-            "project_version": "2.0.0",
-            "mode": "Interactive Test",
             "use_case": use_case,
             "timestamp": pd.Timestamp.now().isoformat(),
             "test_cases_count": len(test_data),
