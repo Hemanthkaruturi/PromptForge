@@ -1,8 +1,12 @@
+# Example configuration for using GPT models with PromptForge
+# Copy this to config.yml and customize as needed
+
 project:
   name: Company classifier
   version: 1.0.0
   use_case: Based on the company description classify which companies IT dependency
     into high, medium or low.
+
 data:
   excel_file: data/golden_data.xlsx
   actual_data_file: data/actual_data.xlsx
@@ -11,34 +15,52 @@ data:
   output_column: expected_output
   skip_empty_rows: true
   max_test_cases: 100
+
+# Model Configuration for GPT
+# You can mix and match providers for different stages
 models:
-  # Supported providers: 'claude' or 'gpt'/'openai'
-  # For GPT models, see config.gpt.example.yml
   initial_prompt_generator:
-    provider: claude                      # Options: claude, gpt, openai
-    model: claude-sonnet-4-5-20250929    # Claude: claude-sonnet-4-5-20250929, GPT: gpt-4o, gpt-4-turbo
+    provider: gpt                    # Use 'gpt' or 'openai' for GPT models
+    model: gpt-4o                    # Options: gpt-4o, gpt-4-turbo, gpt-4, gpt-3.5-turbo
     max_tokens: 4000
     temperature: 0.7
+
   answer_generator:
-    provider: claude
-    model: claude-haiku-4-5-20251001     # Claude: claude-haiku-4-5-20251001, GPT: gpt-4o-mini
+    provider: gpt
+    model: gpt-4o-mini               # Faster, cheaper model for testing
     max_tokens: 2000
     temperature: 0.3
+
   prompt_optimizer:
-    provider: claude
-    model: claude-sonnet-4-5-20250929
+    provider: gpt
+    model: gpt-4o                    # More capable model for optimization
     max_tokens: 4000
     temperature: 0.5
+
   feedback_collector:
-    provider: claude
-    model: claude-sonnet-4-5-20250929
+    provider: gpt
+    model: gpt-4o
     max_tokens: 3000
     temperature: 0.4
+
   prompt_evolver:
-    provider: claude
-    model: claude-sonnet-4-5-20250929
+    provider: gpt
+    model: gpt-4o
     max_tokens: 4000
     temperature: 0.6
+
+# Example: Mixed providers (Claude for generation, GPT for testing)
+# models:
+#   initial_prompt_generator:
+#     provider: claude
+#     model: claude-sonnet-4-5-20250929
+#   answer_generator:
+#     provider: gpt
+#     model: gpt-4o-mini
+#   prompt_optimizer:
+#     provider: claude
+#     model: claude-sonnet-4-5-20250929
+
 optimization:
   max_iterations: 15
   target_success_rate: 100
@@ -50,12 +72,14 @@ optimization:
     enabled: true
     required_consecutive_passes: 3
     description: "Require multiple consecutive perfect passes for higher confidence"
+
 matching:
   method: exact
   case_sensitive: false
   strip_whitespace: true
   fuzzy_threshold: 0.8
   semantic_model: sentence-transformers
+
 output:
   save_timestamped: true
   include_metadata: true
@@ -63,6 +87,7 @@ output:
   save_intermediate_prompts: false
   golden_prompt_file: golden_prompt.txt
   results_summary_file: optimization_results.json
+
 performance:
   enable_parallel: true
   max_workers: 4
@@ -72,22 +97,25 @@ performance:
   max_retries: 3
   retry_delay: 2
   exponential_backoff: true
+
 advanced:
   enable_caching: true
   cache_duration: 3600
   debug_mode: false
   random_seed: 42
   custom_prompts_file: null
+
 validation:
   validate_config: true
   validate_models: true
   validate_data: true
   min_test_cases: 1
+
 experimental:
   enable_ensemble: false
   ensemble_models:
-  - claude-3-5-sonnet-20241022
-  - claude-sonnet-4-5-20250929
+  - gpt-4o
+  - gpt-4-turbo
   enable_multi_objective: false
   objectives:
   - accuracy

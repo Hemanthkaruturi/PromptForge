@@ -16,6 +16,8 @@
 
 ### **Multi-Model Architecture**
 - **Flexible Model Selection**: Use different models for generation vs testing
+- **Multi-Provider Support**: Works with both Claude (Anthropic) and GPT (OpenAI)
+- **Mixed Providers**: Use Claude for generation and GPT for testing, or vice versa
 - **Stage-Specific Optimization**: Different models for different optimization stages
 - **Production Testing**: Generate with high-end models, test with production models
 
@@ -59,17 +61,33 @@
 
 2. **Install dependencies**
    ```bash
-   uv sync
-   # or
+   # For Claude support only (default)
    pip install -e .
+
+   # For GPT support (includes OpenAI)
+   pip install -e ".[gpt]"
+
+   # For both Claude and GPT
+   pip install -e ".[all]"
+
+   # Using uv
+   uv sync
    ```
 
-3. **Set up your API key**
+3. **Set up your API keys**
    ```bash
-   export ANTHROPIC_API_KEY="your-api-key-here"
-   # or create a .env file
-   echo "ANTHROPIC_API_KEY=your-api-key-here" > .env
+   # For Claude (Anthropic)
+   export ANTHROPIC_API_KEY="your-anthropic-api-key-here"
+
+   # For GPT (OpenAI) - optional
+   export OPENAI_API_KEY="your-openai-api-key-here"
+
+   # Or create a .env file
+   echo "ANTHROPIC_API_KEY=your-anthropic-api-key-here" > .env
+   echo "OPENAI_API_KEY=your-openai-api-key-here" >> .env
    ```
+
+   **Note**: You can use either Claude or GPT models, or mix them. See `.env.example` for reference.
 
 ### Basic Usage
 
@@ -228,25 +246,59 @@ result_df = predict_on_actual_data(
 ## Configuration Guide
 
 ### Model Configuration
-Configure different models for different optimization stages:
+Configure different models for different optimization stages. Supports both **Claude** and **GPT** models:
 
+#### Using Claude (Anthropic)
 ```yaml
 models:
-  # High-end model for generating initial prompts
   initial_prompt_generator:
-    model: "claude-sonnet-4-5-20250929"
+    provider: claude
+    model: claude-sonnet-4-5-20250929
     temperature: 0.7
-
-  # Production model for testing prompts
   answer_generator:
-    model: "claude-haiku-4-5-20251001"
+    provider: claude
+    model: claude-haiku-4-5-20251001
     temperature: 0.3
-
-  # High-end model for optimization
-  prompt_optimizer:
-    model: "claude-sonnet-4-5-20250929"
-    temperature: 0.5
 ```
+
+#### Using GPT (OpenAI)
+```yaml
+models:
+  initial_prompt_generator:
+    provider: gpt                    # or 'openai'
+    model: gpt-4o                    # Options: gpt-4o, gpt-4-turbo, gpt-4, gpt-3.5-turbo
+    temperature: 0.7
+  answer_generator:
+    provider: gpt
+    model: gpt-4o-mini               # Faster, cheaper model
+    temperature: 0.3
+```
+
+#### Mixed Providers (Claude + GPT)
+You can mix providers for different stages:
+```yaml
+models:
+  initial_prompt_generator:
+    provider: claude                 # Use Claude for generation
+    model: claude-sonnet-4-5-20250929
+  answer_generator:
+    provider: gpt                    # Use GPT for testing
+    model: gpt-4o-mini
+  prompt_optimizer:
+    provider: claude                 # Use Claude for optimization
+    model: claude-sonnet-4-5-20250929
+```
+
+**Supported Providers:**
+- `claude`: Anthropic Claude models
+- `gpt` or `openai`: OpenAI GPT models
+
+**Popular Model Combinations:**
+- **Claude Premium**: claude-sonnet-4-5-20250929 (generation) + claude-haiku-4-5-20251001 (testing)
+- **GPT Premium**: gpt-4o (generation) + gpt-4o-mini (testing)
+- **Mixed**: claude-sonnet (generation) + gpt-4o-mini (testing)
+
+See `config.gpt.example.yml` for a complete GPT configuration example.
 
 ### Optimization Settings
 Control the optimization process:
@@ -701,8 +753,23 @@ This launches an interactive mode where you can:
 ```
 Error: API key not found
 ```
-- Set `ANTHROPIC_API_KEY` environment variable
-- Or create a `.env` file with the key
+- For Claude: Set `ANTHROPIC_API_KEY` in environment or `.env` file
+- For GPT: Set `OPENAI_API_KEY` in environment or `.env` file
+- Check `.env.example` for the correct format
+
+**GPT-specific issues:**
+```
+ImportError: OpenAI library not installed
+```
+- Install OpenAI library: `pip install openai`
+- Or install all dependencies: `pip install -e .`
+
+```
+ValueError: OPENAI_API_KEY not found
+```
+- Add `OPENAI_API_KEY=your-key-here` to `.env` file
+- Or set environment variable: `export OPENAI_API_KEY=your-key`
+- Get your API key from: https://platform.openai.com/api-keys
 
 ### Performance Tips
 
